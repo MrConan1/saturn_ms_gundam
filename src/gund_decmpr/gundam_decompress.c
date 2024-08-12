@@ -15,37 +15,6 @@
 
 /* Globals */
 
-
-#if 0
-//Stores 15-bits of data pieced together from the input
-//Maybe this is the palette?
-unsigned short paletteData[256];   //Exists starting at 0x0603fc38 on saturn
-
-FILE* decmprLog = NULL;
-
-
-unsigned int decompressVLY(unsigned char* ptrCompressedSrc, unsigned char* ptrDecompressionDst, unsigned int offset_value,
-	                       int* validDataPerSection, int* numSections, int* paletteDataSize);
-void preExtract(unsigned char* ptrDstbuf, char* outFileName);
-void extractMode0(unsigned char* ptrDstbuf, char* outFileName, int width, int height);
-void extractMode1(unsigned char* ptrDstbuf, char* outFileName, int width, int height);
-unsigned int FUN_0603fbd0(unsigned char** ptrSrcData, unsigned int* ptrMask);
-unsigned char* convToHostWithOffset(unsigned char* offset, unsigned char* addr_LE_Value);
-unsigned int FUN_0603f570(unsigned char** p_dstAddress, 
-	                      unsigned char** p_ptrSection6_FC10, 
-						  unsigned char** p_ptrSection3_FC04,
-	                      unsigned char* ptrScratchSpaceBase_2F3000,
-						  unsigned int offsetVal);
-unsigned int FUN_0603f658(	unsigned char** ptr_dstAddress, 
-							unsigned char** p_ptrScratchSpace,
-							unsigned char** p_ptrSection1_FBFC,
-							unsigned char** p_ptrSection5_FC0C,
-							unsigned char** p_ptrSection4_FC08,
-							unsigned int offsetVal);
-void createWindowsPalette(char* outFileName, int paletteDataSize, ColorData* imageInfo, int cdataSize);
-
-#endif
-
 #define MAX_FSIZE (1024*1024)  /* 1MB */
 
 
@@ -124,8 +93,11 @@ int analyzeCGHeader(char* cmprFname){
 		fclose(outfile);
 		printf("Output file %s created.\n",outFileName);
 
-		/* Extract files within decompressed file */
-		extractCGFiles(outFileName, decmprBuf,dstSize);
+		/* Extract files within decompressed file  */
+		/* Only DEMO* files supported at this time */
+		if(strncmp(cmprFname,"DEMO",4) == 0){
+			extractCGFiles(outFileName, decmprBuf,dstSize);
+		}
 	}
 
 	free(decmprBuf);
