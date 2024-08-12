@@ -1,0 +1,12 @@
+gund_decmpr.exe GFiles/DEMOT01.CG
+gund_decmpr.exe GFiles/DEMOT02.CG
+gund_decmpr.exe GFiles/DEMOT03.CG
+gund_decmpr.exe GFiles/DEMOT04.CG
+gund_decmpr.exe GFiles/DEMOT05.CG
+gund_decmpr.exe GFiles/DEMOT06.CG
+gund_decmpr.exe GFiles/DEMOT07.CG
+gund_decmpr.exe GFiles/DEMOT08.CG
+gund_decmpr.exe GFiles/DEMOT09.CG
+gund_decmpr.exe GFiles/DEMOT10.CG
+gund_decmpr.exe GFiles/DEMOT11.CG
+gund_decmpr.exe GFiles/DEMOT12.CG
