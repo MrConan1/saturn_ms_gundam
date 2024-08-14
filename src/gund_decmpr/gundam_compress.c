@@ -259,6 +259,8 @@ int compressCG(char* inputName, char* outputName)
 	/* Release Resources */
 	free(pCmprStream);
 
+	printf("Compression Ratio = %.2f",((float)fsize/cmprOffset));
+
 	return 0;
 }
 
@@ -331,8 +333,10 @@ int testSlidingWindowA(char* pCGX, int cgx_offset, int slidingWindowSize,
 				testRunLength = 0;
 				for(y = 0; y <= 272; y++){
 					testOffset = cgx_offset-z+y;
-					if(testOffset >= cgx_offset)
-						break;
+					//Commented out, allow it to slide forward.  
+					//Decompressor is compatible with this
+					//if(testOffset >= cgx_offset)
+					//	break;
 					if(pCGX[testOffset] == pCGX[cgx_offset + y])
 						testRunLength++;
 					else
@@ -386,8 +390,10 @@ int testSlidingWindowB(char* pCGX, int cgx_offset, int slidingWindowSize,
 				testRunLength = 0;
 				for(y = 0; y <= 16; y++){
 					testOffset = cgx_offset-z+y;
-					if(testOffset >= cgx_offset)
-						break;
+					//Commented out, allow it to slide forward.  
+					//Decompressor is compatible with this
+					//if(testOffset >= cgx_offset)
+					//	break;
 					if(pCGX[testOffset] == pCGX[cgx_offset+y])
 						testRunLength++;
 					else
