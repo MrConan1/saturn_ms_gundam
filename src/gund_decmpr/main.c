@@ -1,7 +1,8 @@
 /******************************************************************************/
-/* main.c - Main execution file for MS Gundam Decompressor                    */
+/* main.c - Main execution file for MS Gundam Decompressor/Compressor         */
 /* =========================================================================  */
-/* Usage:  gund_decmpr.exe InputFname                                         */
+/* Decompression Use:  gund_decmpr.exe InputFname                             */
+/* Compress File Use: gund_cg.exe -c CGX_Filename New_CG_Filename             */
 /******************************************************************************/
 #ifdef _MSC_VER
 #pragma warning(disable:4996)
@@ -12,18 +13,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include "gundam_decompress.h"
-//#include "gundam_compress.h"
+#include "gundam_compress.h"
 
 
 /* Defines */
-#define VER_MAJ    1
+#define VER_MAJ    2
 #define VER_MIN    0
 
 #define MODE_DECOMPRESS 0
 #define MODE_COMPRESS   1
-
-
-/* Globals */
 
 
 
@@ -32,11 +30,11 @@
 int main(int argc, char** argv){
 
     static char inFileName[300];
+	static char outFileName[300];
 	int args_error;
 	int mode = MODE_DECOMPRESS;
-	int extractMode = 1;
 
-    printf("MS Gundam .CG Decompressor v%d.%02d\n", VER_MAJ, VER_MIN);
+    printf("MS Gundam .CG Decompressor/Compressor v%d.%02d\n", VER_MAJ, VER_MIN);
 
     /**************************/
     /* Check input parameters */
@@ -48,8 +46,8 @@ int main(int argc, char** argv){
 		args_error = 0;
 		mode = MODE_DECOMPRESS;
 	}
-    else if (argc == 5){
-		if(strcmp(argv[1],"-u") != 0)
+    else if (argc == 4){
+		if(strcmp(argv[1],"-c") != 0)
 			args_error = 1;
 		mode = MODE_COMPRESS;
 	}
@@ -59,7 +57,8 @@ int main(int argc, char** argv){
 
 	if(args_error){
         printf("Decomrpession Use: gund_cg.exe CG_inputName\n");
-//		printf("Update File Use: gund_cg.exe -u Orig_VLY_Filename 8bppFilenameToUse New_VLY_Filename\n");
+		printf("  File extraction only supports DEMO* files at this time.\n");
+		printf("Compress File Use: gund_cg.exe -c CGX_Filename New_CG_Filename\n");
         return -1;
     }
 
@@ -69,11 +68,18 @@ int main(int argc, char** argv){
 	/**********************************************/
 
 	if(mode == MODE_COMPRESS){
-		printf("Update Mode\n");
-	//	if( updateVLYFile(argv[2], argv[3], argv[4]) < 0){	
-	//		printf("Error creating updated VLY file.\n");
-	//		return -1;
-	//	}
+
+		//Handle Input Parameters
+		memset(inFileName, 0, 300);
+		strcpy(inFileName,argv[2]);
+		memset(outFileName, 0, 300);
+		strcpy(outFileName,argv[3]);
+		printf("Compression Mode, Input = %s, Output = %s\n",inFileName, outFileName);
+
+		if( compressCG(inFileName, outFileName) < 0){	
+			printf("Error creating compressed CG file.\n");
+	  		return -1;
+	  	}
 	}
 	else
 	{
