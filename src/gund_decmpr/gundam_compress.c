@@ -174,7 +174,7 @@ int compressCG(char* inputName, char* outputName)
 			cmprOffset16 += 2;
 			encWd8 = (unsigned char)(cmprBytesB-17);
 			memcpy(pCmprStream16 + cmprOffset16, &encWd8, 1);
-			cmprOffset16 ++;
+			cmprOffset16++;
 			cgxOffset += cmprBytesB;
 			encodeType = CMPRESSION_TYPE;
 		}
@@ -331,7 +331,7 @@ int testSlidingWindowA(char* pCGX, int cgx_offset, int slidingWindowSize,
 		for(x = slidingWindowSize; x > 16 ; x--){
 			for(z = x; z > 0; z--){
 				testRunLength = 0;
-				for(y = 0; y <= 272; y++){
+				for(y = 0; y < 272; y++){
 					testOffset = cgx_offset-z+y;
 					//Commented out, allow it to slide forward.  
 					//Decompressor is compatible with this
@@ -388,7 +388,7 @@ int testSlidingWindowB(char* pCGX, int cgx_offset, int slidingWindowSize,
 		for(x = slidingWindowSize; x > 0; x--){
 			for(z = x; z > 0; z--){
 				testRunLength = 0;
-				for(y = 0; y <= 16; y++){
+				for(y = 0; y < 16; y++){
 					testOffset = cgx_offset-z+y;
 					//Commented out, allow it to slide forward.  
 					//Decompressor is compatible with this
