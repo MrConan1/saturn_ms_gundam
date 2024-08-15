@@ -43,7 +43,7 @@
 /*           SRC = DST_BUFFER - [Bits 11-0]                                  */
 /*           Perform sliding window byte copy from SRC, size = CPY_LEN       */
 /*    C.) [Bits 15-12 > 1]                                                   */
-/*        *Copy of 1 to 16 bytes from sliding window of size 0xFFF           */
+/*        *Copy of 3 to 16 bytes from sliding window of size 0xFFF           */
 /*           CPY_LEN = [Bits 15-12] + 1                                      */
 /*           SRC = DST_BUFFER - [Bits 11-0]                                  */
 /*           Perform sliding window byte copy from SRC, size = CPY_LEN       */
@@ -143,10 +143,10 @@ int compressCG(char* inputName, char* outputName)
 	pFullEncodeWd16 = (unsigned short*)&pCmprStream[2];  /* Filled in at the end */
 	cmprOffset = 4;
 
-
 	numFullEncodes = 0;
 	encodeWord = 0;
 	encodeWdBitOffset = 0;
+	fsizeRemaining = fsize - cgxOffset;
 	while(fsizeRemaining > 0){
 		printf("Input offset = 0x%X  Output Size = 0x%X\n",cgxOffset, cmprOffset+cmprOffset16);
 		fflush(stdout);
@@ -197,13 +197,13 @@ int compressCG(char* inputName, char* outputName)
 
 		/* Update the size of the sliding window, max size is 0xFFF */
 		if(slidingWindowSize < 0xFFF){
-			slidingWindowSize = cgxOffset;
+			slidingWindowSize = cgxOffset; /* Ignore 2 byte header */
 			if(slidingWindowSize > 0xFFF)
 				slidingWindowSize = 0xFFF;
 		}
 
 		/* Update encoding flags  */
-		encodeWord = encodeType << encodeWdBitOffset;
+		encodeWord |= (encodeType << encodeWdBitOffset);
 		encodeWdBitOffset++;
 
 		/* Update the main compression stream      */
@@ -411,8 +411,8 @@ int testSlidingWindowB(char* pCGX, int cgx_offset, int slidingWindowSize,
 	if(maxRunLength > fsizeRemaining)
 		maxRunLength = fsizeRemaining;
 	
-	/* Need a copy of 1 bytes or more */
-	if(maxRunLength < 1)
+	/* Need a copy of 3 bytes or more */
+	if(maxRunLength < 3)
 		return -1;
 
 	*windowOffset = storedOffset;
