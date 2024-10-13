@@ -1,5 +1,6 @@
 /******************************************************************************/
 /* gundam_compress.c - .CG Compressor                                         */
+/* Usage:  -c GFiles\DEMOT01.CGX newFile.CG                                   */
 /******************************************************************************/
 #ifdef _MSC_VER
 #pragma warning(disable:4996)
@@ -12,6 +13,8 @@
 #include "util.h"
 #include "gundam_compress.h"
 
+/* Defines */
+#define DBG_CMPR
 
 /*****************************************************************************/
 /* Compressed CG File Format                                                 */
@@ -57,7 +60,10 @@
 /***********/
 /* Globals */
 /***********/
-
+#ifdef DBG_DECMPR
+static FILE* dbgLog = NULL;
+static int G_innerLoop = 1;
+#endif
 
 /**********************************************/
 /* Dictionary Related Definitions and Globals */
@@ -70,6 +76,9 @@
 #define LITERAL_TYPE		  1
 
 
+/* Turn Logging On/Off */
+#undef DBG_CMPR
+
 /***********************/
 /* Function Prototypes */
 /***********************/
@@ -80,6 +89,11 @@ int testSlidingWindowA(char* pCGX, int cgx_offset, int slidingWindowSize,
 int testSlidingWindowB(char* pCGX, int cgx_offset, int slidingWindowSize, 
 	int* windowOffset, int fsizeRemaining);
 
+
+/* Globals */
+#ifdef DBG_CMPR
+static FILE* dbgLog = NULL;
+#endif
 
 
 /*****************************************************************************/
@@ -98,6 +112,14 @@ int compressCG(char* inputName, char* outputName)
 	unsigned int encodeWdBitOffset;
 	unsigned short encodeWord;
 	unsigned short* pFullEncodeWd16;
+
+#ifdef DBG_CMPR
+    dbgLog = fopen("cmpr_log.txt","w");
+	if(dbgLog == NULL){
+		printf("Error opening compression log file %s.\n","cmpr_log.txt");
+		return -1;
+	}
+#endif
 
 	/**************************************/
 	/* Read decompressed file into memory */
@@ -137,11 +159,15 @@ int compressCG(char* inputName, char* outputName)
 	}
 	memset(pCmprStream, 0, MAX_SIZE);
 
+#ifdef DBG_CMPR
+		fprintf(dbgLog,"Compression Log\n==========================\n");
+#endif
+
 	/* Write short header */
 	pCmprStream[0] = 0x10;  /* ID I guess */
 	pCmprStream[1] = 0x01;  /* Set Compression Flag */
 	pFullEncodeWd16 = (unsigned short*)&pCmprStream[2];  /* Filled in at the end */
-	cmprOffset = 4;
+	cmprOffset = 4;  /* Start after # of full encodes ushort */ 
 
 	numFullEncodes = 0;
 	encodeWord = 0;
@@ -164,6 +190,12 @@ int compressCG(char* inputName, char* outputName)
 			cmprOffset16 += 2;
 			cgxOffset += cmprBytesA;
 			encodeType = CMPRESSION_TYPE;
+
+#ifdef DBG_CMPR
+			swap16(&encWd16);
+			fprintf(dbgLog,"\t\tByte Copy:  0x%04X; (0x%04X) (CpyValue = 0x%02X, CpyLen = %d)\n",encWd16,encWd16 & 0xF000,pCGX[cgxOffset-1]&0xFF,(encWd16&0xFFF)+3);
+			fflush(dbgLog);
+#endif
 		}
 		else if( ((cmprBytesB-1) >= cmprBytesA) && ((cmprBytesB-1) >= cmprBytesC) && (cmprBytesB > 0)){
 			//Note: Sliding Window A incurs a 1 Word encoding penalty for comparison purposes
@@ -177,6 +209,12 @@ int compressCG(char* inputName, char* outputName)
 			cmprOffset16++;
 			cgxOffset += cmprBytesB;
 			encodeType = CMPRESSION_TYPE;
+#ifdef DBG_CMPR
+			swap16(&encWd16);
+			fprintf(dbgLog,"\t\tSliding Window A:  0x%04X; (0x%04X) (CpyLen = %d)\n",encWd16,encWd16&0xF000,cmprBytesB);
+			fflush(dbgLog);
+#endif
+
 		}
 		else if( (cmprBytesC >= cmprBytesA) && (cmprBytesC >= cmprBytesB) && (cmprBytesC > 0)){
 			//Sliding Window B Encoding
@@ -186,6 +224,11 @@ int compressCG(char* inputName, char* outputName)
 			cmprOffset16 += 2;
 			cgxOffset += cmprBytesC;
 			encodeType = CMPRESSION_TYPE;
+#ifdef DBG_CMPR
+			swap16(&encWd16);
+			fprintf(dbgLog,"\t\tSliding Window B:  0x%04X; (0x%04X) (CpyLen = %d)\n",encWd16,encWd16&0xF000,(encWd16>>12)+1);
+			fflush(dbgLog);
+#endif
 		}
 		else{
 			//Literal Encoding (Direct Write of 2 bytes)
@@ -193,6 +236,14 @@ int compressCG(char* inputName, char* outputName)
 			memcpy(pCmprStream16 + cmprOffset16, pCGX + cgxOffset, 2);
 			cmprOffset16 += 2;
 			cgxOffset += 2;
+
+#ifdef DBG_CMPR
+			fprintf(dbgLog,"\t\tLiteral Copy:  0x%02X%02X\n",pCGX[cgxOffset-2] & 0xFF,pCGX[cgxOffset-1] & 0xFF);
+			fflush(dbgLog);
+
+			if( ((pCGX[cgxOffset-2] & 0xFF) == 0x80) && ((pCGX[cgxOffset-1] & 0xFF) == 0x00))
+				printf("\nHERE\n");
+#endif
 		}
 
 		/* Update the size of the sliding window, max size is 0xFFF */
@@ -213,6 +264,11 @@ int compressCG(char* inputName, char* outputName)
 			encodeWdBitOffset = 0;
 			swap16(&encodeWord);
 			memcpy(&pCmprStream[cmprOffset], &encodeWord, 2);
+#ifdef DBG_CMPR
+			swap16(&encodeWord);
+			fprintf(dbgLog,"\t\tMaskWD:  0x%04X\n\n",encodeWord & 0xFFFF);
+			fflush(dbgLog);
+#endif
 			cmprOffset += 2;
 			memcpy(&pCmprStream[cmprOffset], pCmprStream16, cmprOffset16);
 			cmprOffset += cmprOffset16;
@@ -234,12 +290,28 @@ int compressCG(char* inputName, char* outputName)
 	memcpy(&pCmprStream[cmprOffset], &numPartialEncodes, 2);
 	cmprOffset += 2;
 
+#ifdef DBG_CMPR
+	swap16(&numPartialEncodes);
+	fprintf(dbgLog,"\t\tNum Partial Encodes:  0x%04X\n\n",numPartialEncodes & 0xFFFF);
+	fflush(dbgLog);
+	swap16(&numPartialEncodes);
+#endif
+
 	/* Write out the remainder of encoded data */
-	swap16(&encodeWord);
-	memcpy(&pCmprStream[cmprOffset], &encodeWord, 2);
-	cmprOffset += 2;
-	memcpy(&pCmprStream[cmprOffset], pCmprStream16, cmprOffset16);
-	cmprOffset += cmprOffset16;
+	swap16(&numPartialEncodes);
+	if(numPartialEncodes > 0){
+		swap16(&encodeWord);
+		memcpy(&pCmprStream[cmprOffset], &encodeWord, 2);
+		cmprOffset += 2;
+		memcpy(&pCmprStream[cmprOffset], pCmprStream16, cmprOffset16);
+		cmprOffset += cmprOffset16;
+
+#ifdef DBG_CMPR
+		swap16(&encodeWord);
+		fprintf(dbgLog,"\t\tPartial MaskWD:  0x%04X\n\n",encodeWord & 0xFFFF);
+		fflush(dbgLog);
+#endif
+	}
 
 	/* Release Resources */
 	free(pCmprStream16);
@@ -258,6 +330,10 @@ int compressCG(char* inputName, char* outputName)
 
 	/* Release Resources */
 	free(pCmprStream);
+
+#ifdef DBG_CMPR
+    fclose(dbgLog);
+#endif
 
 	printf("Compression Ratio = %.2f",((float)fsize/cmprOffset));
 
@@ -316,7 +392,7 @@ int testCpyPrevious(char* pCGX, int cgx_offset, int fsizeRemaining){
 int testSlidingWindowA(char* pCGX, int cgx_offset, int slidingWindowSize, 
 	int* windowOffset, int fsizeRemaining){
 
-	int x,y,z;
+	int y,z;
 	int storedOffset = 0;
 	int maxRunLength = 0;
 
@@ -328,24 +404,19 @@ int testSlidingWindowA(char* pCGX, int cgx_offset, int slidingWindowSize,
 		int testRunLength = 0;
 		int testOffset = 0;
 
-		for(x = slidingWindowSize; x > 16 ; x--){
-			for(z = x; z > 0; z--){
-				testRunLength = 0;
-				for(y = 0; y < 272; y++){
-					testOffset = cgx_offset-z+y;
-					//Commented out, allow it to slide forward.  
-					//Decompressor is compatible with this
-					//if(testOffset >= cgx_offset)
-					//	break;
-					if(pCGX[testOffset] == pCGX[cgx_offset + y])
-						testRunLength++;
-					else
-						break;
-				}
-				if(testRunLength > maxRunLength){
-					maxRunLength = testRunLength;
-					storedOffset = x;
-				}
+		for(z = slidingWindowSize; z > 0; z--){
+
+			testRunLength = 0;
+			for(y = 0; y < 272; y++){
+				testOffset = cgx_offset-z+y;
+				if(pCGX[testOffset] == pCGX[cgx_offset + y])
+					testRunLength++;
+				else
+					break;
+			}
+			if(testRunLength >= maxRunLength){
+				maxRunLength = testRunLength;
+				storedOffset = z;
 			}
 		}
 	}
@@ -373,7 +444,7 @@ int testSlidingWindowA(char* pCGX, int cgx_offset, int slidingWindowSize,
 int testSlidingWindowB(char* pCGX, int cgx_offset, int slidingWindowSize, 
 	int* windowOffset, int fsizeRemaining){
 
-	int x,y,z;
+	int y,z;
 	int storedOffset = 0;
 	int maxRunLength = 0;
 
@@ -385,24 +456,18 @@ int testSlidingWindowB(char* pCGX, int cgx_offset, int slidingWindowSize,
 		int testRunLength = 0;
 		int testOffset = 0;
 		
-		for(x = slidingWindowSize; x > 0; x--){
-			for(z = x; z > 0; z--){
-				testRunLength = 0;
-				for(y = 0; y < 16; y++){
-					testOffset = cgx_offset-z+y;
-					//Commented out, allow it to slide forward.  
-					//Decompressor is compatible with this
-					//if(testOffset >= cgx_offset)
-					//	break;
-					if(pCGX[testOffset] == pCGX[cgx_offset+y])
-						testRunLength++;
-					else
-						break;
-				}
-				if(testRunLength > maxRunLength){
-					maxRunLength = testRunLength;
-					storedOffset = x;
-				}
+		for(z = slidingWindowSize; z > 0; z--){
+			testRunLength = 0;
+			for(y = 0; y < 16; y++){
+				testOffset = cgx_offset-z+y;
+				if(pCGX[testOffset] == pCGX[cgx_offset+y])
+					testRunLength++;
+				else
+					break;
+			}
+			if(testRunLength >= maxRunLength){
+				maxRunLength = testRunLength;
+				storedOffset = z;
 			}
 		}
 	}
@@ -418,3 +483,4 @@ int testSlidingWindowB(char* pCGX, int cgx_offset, int slidingWindowSize,
 	*windowOffset = storedOffset;
 	return maxRunLength;
 }
+

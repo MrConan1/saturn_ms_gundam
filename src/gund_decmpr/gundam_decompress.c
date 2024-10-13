@@ -13,10 +13,17 @@
 #include "gundam_decompress.h"
 #include "gundam_extract.h"
 
-/* Globals */
 
+
+/* Defines */
 #define MAX_FSIZE (1024*1024)  /* 1MB */
+#undef DBG_DECMPR         /* Adds Logging */
 
+/* Globals */
+#ifdef DBG_DECMPR
+static FILE* dbgLog = NULL;
+static int G_innerLoop = 1;
+#endif
 
 /* Function Prototypes */
 int analyzeCGHeader(char* cmprFname);
@@ -24,6 +31,7 @@ int performCGDecompression(int cmprFlag, unsigned int comprSrcAddr,
 	unsigned int dstAddr, unsigned int dstBufferSize, unsigned int* dstSize);
 int runInnerDecmpression(unsigned int* p_addrCmprInput, 
 	unsigned int* p_addrDecmprBuf, unsigned int addrDecmprBufEnd, int loopCtr);
+
 
 
 //R4 = 00000001
@@ -73,10 +81,22 @@ int analyzeCGHeader(char* cmprFname){
 	dstAddr = (unsigned int)decmprBuf;
 	dstBufferSize = MAX_FSIZE;
 	dstSize = 0;
-		
+
+#ifdef DBG_DECMPR
+    dbgLog = fopen("decmpr_log.txt","w");
+	if(dbgLog == NULL){
+		printf("Error opening decompression log file %s.\n","decmpr_log.txt");
+		return -1;
+	}
+#endif
+
 	/* Perform the decompression */
 	rval = performCGDecompression(flag, comprSrcAddr, dstAddr, dstBufferSize, &dstSize);
 	free(cmprInputBuf);
+
+#ifdef DBG_DECMPR
+    fclose(dbgLog);
+#endif
 
 	/******************************************************************/
 	/* Output Decompressed Data to a file if decompression successful */
@@ -134,6 +154,11 @@ int performCGDecompression(int cmprFlag, unsigned int comprSrcAddr, unsigned int
 		comprSrcAddr += 2;
 		numLoops = (int)tmpWd;
 
+#ifdef DBG_DECMPR
+		fprintf(dbgLog,"Decompression Log\n==========================\n");
+		fprintf(dbgLog,"Num full Decmpression Loops:  %d\n\n",tmpWd);
+#endif
+
 		for(x = 0; x < numLoops; x++){
 			rval = runInnerDecmpression(&comprSrcAddr, &dstAddr, addrDecmprBufEnd, 0x10);
 			if(rval != 0){
@@ -147,6 +172,10 @@ int performCGDecompression(int cmprFlag, unsigned int comprSrcAddr, unsigned int
 		swap16(&tmpWd);
 		comprSrcAddr += 2;
 		remainder = (int)tmpWd;
+
+#ifdef DBG_DECMPR
+		fprintf(dbgLog,"\nRemainder Decmpression Loops:  %d\n\n",tmpWd);
+#endif
 
 		rval = runInnerDecmpression(&comprSrcAddr, &dstAddr, addrDecmprBufEnd, remainder);
 		if(rval != 0){
@@ -202,6 +231,10 @@ int runInnerDecmpression(unsigned int* p_addrCmprInput, unsigned int* p_addrDecm
 	addrCmprInput += 2;
 	swap16(&initialWd);
 
+#ifdef DBG_DECMPR
+	fprintf(dbgLog,"\tBegin Inner Loop %d, Mask Wd:  0x%04X\n",G_innerLoop++,initialWd);
+#endif
+
 	/* Loop Counter needs to be > 0 */
 	if(loopCtr <= 0){
 		printf("Error, loop Counter <= 0\n");
@@ -227,6 +260,10 @@ int runInnerDecmpression(unsigned int* p_addrCmprInput, unsigned int* p_addrDecm
 		//cnt *= 2; maskValue = *(0x060675A8 + cnt);
 		maskValue = usArray_060675a8[x];
 		testValue = initialWd & maskValue;
+
+#ifdef DBG_DECMPR
+		fprintf(dbgLog,"\t\tInitial Wd = 0x%04X, Mask Value = 0x%04X, Test Value = 0x%04X, TMPWD = 0x%04X\n",initialWd,maskValue,testValue,tmpWd);
+#endif
 
 		/* When testValue is 0, its an encoded cpy, otherwise its a literal copy */
 		if(testValue == 0){
@@ -258,6 +295,11 @@ int runInnerDecmpression(unsigned int* p_addrCmprInput, unsigned int* p_addrDecm
 				ptrDecmprBuf = (unsigned char*)(addrDecmprBuf);
 				memset(ptrDecmprBuf,uint8_Value,uint16_cpyLen);
 				addrDecmprBuf += uint16_cpyLen;
+
+#ifdef DBG_DECMPR
+				fprintf(dbgLog,"\t\tByte Copy:  0x%04X; (0x%04X) (CpyValue = 0x%02X, CpyLen = %d)\n",tmpWd,testValue2,uint8_Value,uint16_cpyLen);
+#endif
+
 			}
 			else{
 				//06012f60
@@ -286,6 +328,10 @@ int runInnerDecmpression(unsigned int* p_addrCmprInput, unsigned int* p_addrDecm
 					ptrDecmprBuf = (unsigned char*)addrDecmprBuf;
 					sliding_window_cpy(ptrDecmprBuf, (unsigned char*)srcAddress,uint16_cpyLen);  //r4=0608811E, r5=0608811A, r6 = 110
 					addrDecmprBuf += uint16_cpyLen;
+
+#ifdef DBG_DECMPR
+					fprintf(dbgLog,"\t\tSliding Window A:  0x%04X; (0x%04X) (CpyAddr = 0x%08X, CpyLen = %d)\n",tmpWd,testValue2,srcAddress,uint16_cpyLen);
+#endif
 				}
 				else{
 					//06012fa8 - Sliding Window Copy (Type 2)
@@ -309,6 +355,10 @@ int runInnerDecmpression(unsigned int* p_addrCmprInput, unsigned int* p_addrDecm
 					ptrDecmprBuf = (unsigned char*)addrDecmprBuf;
 					sliding_window_cpy(ptrDecmprBuf, (unsigned char*)srcAddress,uint16_cpyLen);
 					addrDecmprBuf += uint16_cpyLen;
+
+#ifdef DBG_DECMPR
+					fprintf(dbgLog,"\t\tSliding Window B:  0x%04X; (0x%04X) (CpyAddr = 0x%08X, CpyLen = %d)\n",tmpWd,testValue2,srcAddress,uint16_cpyLen);
+#endif
 				}
 			}
 
@@ -332,6 +382,11 @@ int runInnerDecmpression(unsigned int* p_addrCmprInput, unsigned int* p_addrDecm
 			ptrDecmprBuf = (unsigned char*)addrDecmprBuf;
 			*ptrDecmprBuf = uint8_byte1;
 			addrDecmprBuf++;
+
+#ifdef DBG_DECMPR
+			fprintf(dbgLog,"\t\tLiteral Copy:  0x%02X%02X\n",uint8_byte0,uint8_byte1);
+#endif
+
 		}
 
 
