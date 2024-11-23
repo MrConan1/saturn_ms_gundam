@@ -1,5 +1,5 @@
 /******************************************************************************/
-/* anm_decompress.c - .ANM File Decompressor                                  */
+/* anm_decompress.c - .ANM File Extractor with Decompressor                   */
 /******************************************************************************/
 #ifdef _MSC_VER
 #pragma warning(disable:4996)
@@ -176,6 +176,7 @@ int extractANMData(char* pBuffer, char* baseFilename){
 					filename, imageInfo, bmpname);
 
 				fprintf(outputInfo,"Img_%d: %s\n",x,filename);
+				fprintf(outputInfo,"RLE = 1\n");
 				fprintf(outputInfo,"Width_Height: %d x %d\n",width,height);
 			}
 			if(outBufRLE != NULL)
@@ -234,6 +235,7 @@ int extractANMData(char* pBuffer, char* baseFilename){
 					filename, imageInfo, bmpname);
 
 				fprintf(outputInfo,"Img_%d: %s\n",x,filename);
+				fprintf(outputInfo,"RLE = 0\n");
 				fprintf(outputInfo,"Width_Height: %d x %d\n",width,height);
 			}
 		}

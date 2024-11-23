@@ -1,9 +1,10 @@
 /******************************************************************************/
-/* main.c - Main execution file for MS Gundam Anm file Decompressor/Compressor*/
+/* main.c - Main execution file for MS Gundam Anm file Extractor/Creator      */
 /* =========================================================================  */
-/* Decompression Use:  anm.exe InputFname                                     */
-/* Compress File Use:                                                         */
-/*            anm.exe -c Old_ANM_Filename New_RLE_SECTION New_ANM_Filename    */
+/* Extraction Use:  anm.exe InputFname                                        */
+/* Create File Use:  anm.exe -c ANM_Cfg_File.txt New_ANM_Filename             */
+/*                                                                            */
+/* Some ANM files use RLE to compress the first large image in the file.      */
 /******************************************************************************/
 #ifdef _MSC_VER
 #pragma warning(disable:4996)
@@ -14,15 +15,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include "anm_decompress.h"
-//#include "anm_compress.h"
+#include "anm_create.h"
 
 
 /* Defines */
 #define VER_MAJ    1
 #define VER_MIN    0
 
-#define MODE_DECOMPRESS 0
-#define MODE_COMPRESS   1
+#define MODE_EXTRACT  0
+#define MODE_CREATE   1
 
 
 
@@ -31,11 +32,11 @@
 int main(int argc, char** argv){
 
     static char inFileName[300];
-//	static char outFileName[300];
+	static char outFileName[300];
 	int args_error;
-	int mode = MODE_DECOMPRESS;
+	int mode = MODE_EXTRACT;
 
-    printf("MS Gundam .ANM Decompressor/Compressor v%d.%02d\n", VER_MAJ, VER_MIN);
+    printf("MS Gundam .ANM Extractor/Creator v%d.%02d\n", VER_MAJ, VER_MIN);
 
     /**************************/
     /* Check input parameters */
@@ -45,20 +46,20 @@ int main(int argc, char** argv){
 	args_error = 0;
 	if (argc == 2){
 		args_error = 0;
-		mode = MODE_DECOMPRESS;
+		mode = MODE_EXTRACT;
 	}
     else if (argc == 4){
 		if(strcmp(argv[1],"-c") != 0)
 			args_error = 1;
-		mode = MODE_COMPRESS;
+		mode = MODE_CREATE;
 	}
 	else{
 		args_error = 1;
 	}
 
 	if(args_error){
-        printf("Decomrpession Use: anm.exe ANM_inputName\n");
-		printf("Compress File Use: anm.exe -c ANM_Filename New_RLE_SECTION New_ANM_Filename\n");
+        printf("Extraction Use: anm.exe ANM_inputName\n");
+		printf("Create File Use: anm.exe -c ANM_Cfg_File.txt New_ANM_Filename\n");
         return -1;
     }
 
@@ -67,19 +68,20 @@ int main(int argc, char** argv){
 	/* Compress or Decompress based on Input Args */
 	/**********************************************/
 
-	if(mode == MODE_COMPRESS){
+	if(mode == MODE_CREATE){
 
 		//Handle Input Parameters
-//		memset(inFileName, 0, 300);
-//		strcpy(inFileName,argv[2]);
-//		memset(outFileName, 0, 300);
-//		strcpy(outFileName,argv[3]);
-//		printf("Compression Mode, Input = %s, Output = %s\n",inFileName, outFileName);
+		memset(inFileName, 0, 300);
+		strcpy(inFileName,argv[2]);
+		memset(outFileName, 0, 300);
+		strcpy(outFileName,argv[3]);
+		printf("Create File Mode, Cfg_Input = %s, Output = %s\n",inFileName, outFileName);
 
-//		if( compressCG(inFileName, outFileName) < 0){	
-//			printf("Error creating compressed CG file.\n");
-//	  		return -1;
-//	  	}
+		if( createANM(inFileName, outFileName) < 0){	
+			printf("Error creating ANM file.\n");
+	  		return -1;
+	  	}
+		printf("File creation successful.\n");
 	}
 	else
 	{
@@ -92,7 +94,7 @@ int main(int argc, char** argv){
 		//Handle Input Parameters
 		memset(inFileName, 0, 300);
 		strcpy(inFileName,argv[1]);
-		printf("Decompression Mode, Input = %s\n",inFileName);
+		printf("Extraction Mode, Input = %s\n",inFileName);
 
 		/* Put the input file straight into memory */
 		inputBuffer = (char*)malloc(1024*1024);
@@ -109,11 +111,11 @@ int main(int argc, char** argv){
 		fclose(inputFile);
 
 		if(extractANMData(inputBuffer, inFileName) < 0){
-			printf("File decompression failed.\n");
+			printf("File extraction failed.\n");
 			return -1;
 		}
 		else{
-			printf("File decompression successful.\n");
+			printf("File extraction successful.\n");
 		}
 		free(inputBuffer);
 	}
