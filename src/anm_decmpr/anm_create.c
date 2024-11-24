@@ -378,7 +378,7 @@ int rleCompressor(char* inputStream, unsigned int inputSizeBytes,
 			*pOutput = (char)(127 * -1);
 			pOutput++;
 			outputSize++;
-			memcpy(pOutput,inputStream,127);
+			memcpy(pOutput,pInput,127);
 			distance -= 127;
 			pInput += 127;
 			pOutput += 127;
@@ -388,7 +388,7 @@ int rleCompressor(char* inputStream, unsigned int inputSizeBytes,
 			*pOutput = (char)(distance * -1);
 			pOutput++;
 			outputSize++;
-			memcpy(pOutput,inputStream,distance);
+			memcpy(pOutput,pInput,distance);
 			pInput += distance;
 			pOutput += distance;
 			outputSize += distance;
