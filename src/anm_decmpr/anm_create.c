@@ -217,7 +217,7 @@ int createANM(char* cfgFilename, char* outFname){
 
 	    /* Open file */
 		inFile2 = fopen(filename,"rb");
-		if(inFile == NULL){
+		if(inFile2 == NULL){
 			printf("Error opening section image %s\n",filename);
 			return -1;
 		}
@@ -334,6 +334,7 @@ int rleCompressor(char* inputStream, unsigned int inputSizeBytes,
 	}
 	else{
 		*pSW = 0x0008;
+        swap16(pSW);
 		pSW++;
 		*pSW = 0x0000;
 		pSW++;
