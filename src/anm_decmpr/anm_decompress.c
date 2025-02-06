@@ -245,6 +245,93 @@ int extractANMData(char* pBuffer, char* baseFilename){
 }
 
 
+
+int extractANMData_staff(char* pBuffer, char* baseFilename){
+
+	FILE* outfile, *outputInfo;
+	static char filename[300];
+	int numOffsets, dataSize,rval,x;
+	unsigned int offset;
+	unsigned int* pOffset;
+	unsigned short* pSWData;
+	unsigned short width, height;
+	char* pData;
+	int* ptrSize;
+	anmHeader* anmHdr = (anmHeader*)pBuffer;
+	numOffsets = anmHdr->numValidOffsets;
+	swap32(&numOffsets);
+
+	/* Create a file to hold information about the output files */
+	sprintf(filename,"%s_info.txt",baseFilename);
+	outputInfo = fopen(filename,"wb");
+	if(outputInfo == NULL){
+		printf("Error opening output info file for writing");
+		return -1;
+	}
+	fprintf(outputInfo,"Original_File: %s\n",baseFilename);
+	fprintf(outputInfo,"Num_Sections: %d\n",numOffsets);
+
+
+/* Staff file..    0000 2979 00 00 fb08 fc 01 f8 00 ff 7f 00 7f*/
+	/* staff file appears compressed */
+
+
+	/* Output all images in the file */
+	for(x = 0; x < numOffsets; x++){
+		
+		pOffset = &(anmHdr->data_N_Offset1);
+		offset = pOffset[x];
+		swap32(&offset);
+		pData = (pBuffer + offset);
+		ptrSize = (int*)(pBuffer + offset - 4);
+		dataSize = *ptrSize;
+		swap32(&dataSize);
+
+		/* All files are RLE Data */
+		if(1){
+			char* outBufRLE = NULL;
+			unsigned int outputSize;
+			rval = decompressRLEData(pData, &outBufRLE,&outputSize);
+			if(rval >= 0){
+
+				/* Get width and height */
+				pSWData = (unsigned short*)outBufRLE;
+				width = *pSWData;
+				height = *(pSWData+1);
+				swap16(&width);
+				swap16(&height);
+				outputSize -= 4;
+
+				/* Just copy the uncompressed data out to a file */
+				sprintf(filename,"%s_%d_%dw_%dh.bin",baseFilename,x,width,height);
+				outfile = fopen(filename,"wb");
+				if(outfile == NULL){
+					printf("Error opening output file for writing");
+					return -1;
+				}
+				fwrite((outBufRLE+4),1,outputSize,outfile);
+				fclose(outfile);
+
+				/* Create a bitmap */
+#if 0
+				sprintf(bmpname,"%s_%d_%dw_%dh.bmp",baseFilename,x,width,height);
+				createBitmap((unsigned int)width, (unsigned int)height, 
+					filename, imageInfo, bmpname);
+#endif
+				fprintf(outputInfo,"Img_%d: %s\n",x,filename);
+				fprintf(outputInfo,"RLE = 1\n");
+				fprintf(outputInfo,"Width_Height: %d x %d\n",width,height);
+			}
+			if(outBufRLE != NULL)
+				free(outBufRLE);
+		}
+	}
+	fclose(outputInfo);
+	return 0;
+}
+
+
+
 int decompressRLEData(char* inputStream, char** outputStream, 
 	unsigned int* outSize){
 

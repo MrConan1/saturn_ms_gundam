@@ -35,6 +35,7 @@ int main(int argc, char** argv){
 	static char outFileName[300];
 	int args_error;
 	int mode = MODE_EXTRACT;
+	int staff_flg = 0;
 
     printf("MS Gundam .ANM Extractor/Creator v%d.%02d\n", VER_MAJ, VER_MIN);
 
@@ -43,10 +44,17 @@ int main(int argc, char** argv){
     /**************************/
 
     /* Check for valid # of args */
+	staff_flg = 0;
 	args_error = 0;
 	if (argc == 2){
 		args_error = 0;
 		mode = MODE_EXTRACT;
+	}
+	else if (argc == 3){
+		if(strcmp(argv[1],"-s") != 0)
+			args_error = 1;
+		mode = MODE_EXTRACT;
+		staff_flg = 1;
 	}
     else if (argc == 4){
 		if(strcmp(argv[1],"-c") != 0)
@@ -59,6 +67,7 @@ int main(int argc, char** argv){
 
 	if(args_error){
         printf("Extraction Use: anm.exe ANM_inputName\n");
+		printf("Extraction Use (Staff File): anm.exe -s ANM_inputName\n");
 		printf("Create File Use: anm.exe -c ANM_Cfg_File.txt New_ANM_Filename\n");
         return -1;
     }
@@ -93,7 +102,11 @@ int main(int argc, char** argv){
 
 		//Handle Input Parameters
 		memset(inFileName, 0, 300);
-		strcpy(inFileName,argv[1]);
+		if(staff_flg){
+			strcpy(inFileName,argv[2]);
+		}
+		else
+			strcpy(inFileName,argv[1]);
 		printf("Extraction Mode, Input = %s\n",inFileName);
 
 		/* Put the input file straight into memory */
@@ -110,13 +123,19 @@ int main(int argc, char** argv){
 		fread(inputBuffer,1,1024*1024,inputFile);
 		fclose(inputFile);
 
-		if(extractANMData(inputBuffer, inFileName) < 0){
+		if(staff_flg == 1){
+			extractANMData_staff(inputBuffer, inFileName);
+			if(extractANMData_staff(inputBuffer, inFileName) < 0){
+				printf("File extraction failed.\n");
+				return -1;
+			}
+		}
+		else if(extractANMData(inputBuffer, inFileName) < 0){
 			printf("File extraction failed.\n");
 			return -1;
 		}
-		else{
-			printf("File extraction successful.\n");
-		}
+		
+		printf("File extraction successful.\n");
 		free(inputBuffer);
 	}
 

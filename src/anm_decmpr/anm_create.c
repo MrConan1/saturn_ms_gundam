@@ -102,6 +102,7 @@ int createANM(char* cfgFilename, char* outFname){
 	unsigned int numSections, paletteSize, paletteWord, totalFsize;
 	int x;
 	int rval = 0;
+	int noPalette = 0;
 
 	/* Open the input file */
 	inFile = fopen(cfgFilename,"r");
@@ -137,48 +138,53 @@ int createANM(char* cfgFilename, char* outFname){
 	
 	/******************************************************************************/
 	/* First Section is the Palette, 32-bit Palette Word followed by Palette Data */
+	/* Skip if file has no palette (credits dont have one)                        */
 	/******************************************************************************/
 
 	/* Read filename, palette word, palette size from CFG File */
 	if(fgets(line, 300, inFile) == NULL){
 		return -1;
 	}
-	sscanf(line, "%s %s",tempStr, filename);
-	if(fgets(line, 300, inFile) == NULL){
-		return -1;
+	if(strncmp(line,"Palette:",8)==0){	/* Check for palette */
+		sscanf(line, "%s %s",tempStr, filename);
+		if(fgets(line, 300, inFile) == NULL){
+			return -1;
+		}
+		sscanf(line, "%s %X",tempStr,&paletteWord);
+		if(fgets(line, 300, inFile) == NULL){
+			return -1;
+		}
+		sscanf(line, "%s %X",tempStr,&paletteSize);
+
+		/* Write the size of the palette data + palette word to the output */
+		pLWData = (unsigned int*)pOutput;
+		*pLWData = 4+paletteSize;
+		swap32(pLWData);
+		pOutput += 4;
+
+		/* Update the Header Offset for this section      */
+		pHdrData[0] = ((unsigned int)pOutput - (unsigned int)outBuffer);
+		swap32(pHdrData);
+
+		/* Write palette word to the output */
+		pLWData = (unsigned int*)pOutput;
+		*pLWData = paletteWord;
+		swap32(pLWData);
+		pOutput += 4;
+
+		/* Read the Palette Data into the output buffer */
+		inFile2 = fopen(filename,"rb");
+		if(inFile2 == NULL){
+			printf("Error opening palette image %s\n",filename);
+			return -1;
+		}
+		fread(pOutput,1,paletteSize,inFile2);
+		fclose(inFile2);
+		pOutput += paletteSize;
 	}
-	sscanf(line, "%s %X",tempStr,&paletteWord);
-	if(fgets(line, 300, inFile) == NULL){
-		return -1;
+	else{
+		noPalette = 1;
 	}
-	sscanf(line, "%s %X",tempStr,&paletteSize);
-
-	/* Write the size of the palette data + palette word to the output */
-	pLWData = (unsigned int*)pOutput;
-	*pLWData = 4+paletteSize;
-	swap32(pLWData);
-	pOutput += 4;
-
-	/* Update the Header Offset for this section      */
-	pHdrData[0] = ((unsigned int)pOutput - (unsigned int)outBuffer);
-	swap32(pHdrData);
-
-	/* Write palette word to the output */
-	pLWData = (unsigned int*)pOutput;
-	*pLWData = paletteWord;
-	swap32(pLWData);
-	pOutput += 4;
-
-	/* Read the Palette Data into the output buffer */
-	inFile2 = fopen(filename,"rb");
-	if(inFile == NULL){
-		printf("Error opening section image %s\n",filename);
-		return -1;
-	}
-	fread(pOutput,1,paletteSize,inFile2);
-	fclose(inFile2);
-	pOutput += paletteSize;
-
 
 	/**********************/
 	/* Image Section Info */
@@ -186,7 +192,12 @@ int createANM(char* cfgFilename, char* outFname){
 	/* For each additional section, place the following to the output buffer:     */
 	/* Section Size, Width (16-bits), Height (16-bits), Image Data                */
 	/******************************************************************************/
-	for(x = 1; x < (int)numSections; x++){
+	if(noPalette)
+		x = 0;
+	else
+		x = 1;
+
+	for(; x < (int)numSections; x++){
 
 		char* pSectionData;
 		unsigned short* pSW;
@@ -194,7 +205,10 @@ int createANM(char* cfgFilename, char* outFname){
 		unsigned short width, height;
 
 		/* Read filename, rle flag, width, height from CFG File */
-		if(fgets(line, 300, inFile) == NULL){
+		if(noPalette){
+			noPalette = 0;
+		}
+		else if(fgets(line, 300, inFile) == NULL){
 			rval = -1;
 			break;
 		}
@@ -283,6 +297,13 @@ int createANM(char* cfgFilename, char* outFname){
 		memcpy(pOutput,pSectionData,totalSizeBytes);
 		pOutput += totalSizeBytes;
 
+		/* Ensure output is on a 32-bit boundary for next section */
+		if((totalSizeBytes % 4) != 0){
+			int remainder = (totalSizeBytes % 4);
+			memset(pOutput,0,remainder);
+			pOutput += remainder;
+		}
+
 		free(pSectionData);
 	}
 	fclose(inFile);
@@ -363,7 +384,7 @@ int rleCompressor(char* inputStream, unsigned int inputSizeBytes,
 		rval = detectRun(pInput, dataRemaining, &runLocation);
 		if(rval < 0){
 			/* No more runs left in the file */
-			distance = (unsigned int)dataRemaining - (unsigned int)pInput;
+			distance = (unsigned int)dataRemaining;
 			runDetected = 0;
 		}
 		else{
@@ -373,7 +394,7 @@ int rleCompressor(char* inputStream, unsigned int inputSizeBytes,
 			runDetected = 1;
 		}
 		dataRemaining -= distance;
-		
+
 		/* Encode all literals up to the run */
 		while(distance > 127){
 			*pOutput = (char)(127 * -1);
@@ -433,7 +454,7 @@ int rleCompressor(char* inputStream, unsigned int inputSizeBytes,
 
 	*outSizeBytes = outputSize;
 
-	return rval;
+	return 0;
 }
 
 

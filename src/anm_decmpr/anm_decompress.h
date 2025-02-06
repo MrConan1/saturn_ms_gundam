@@ -9,6 +9,7 @@
 
 /* Function Prototypes */
 int extractANMData(char* pBuffer, char* baseFilename);
+int extractANMData_staff(char* pBuffer, char* baseFilename);
 int decompressRLEData(char* inputStream, char** outputStream, 
 	unsigned int* outSize);
 
