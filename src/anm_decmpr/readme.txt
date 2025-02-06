@@ -1,1 +1,1 @@
-Decompressor for .anm files  
+Decompressor for .anm files and staff.mrg 
